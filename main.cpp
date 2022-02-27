@@ -146,7 +146,10 @@ int main(int argc, char* argv[])
     const auto [grid_width, grid_height] = get_best_grid_size(text.size());
     std::cout << glyph_width << ", " << glyph_height << "\n"
               << grid_width << ", " << grid_height << "\n";
-    yimage::Image image(glyph_width * grid_width,
+    auto image_width = glyph_width * grid_width;
+    if (auto n = image_width % 8)
+        image_width += (8 - n);
+    yimage::Image image(image_width,
                         glyph_height * grid_height,
                         yimage::PixelType::MONO8);
     yimage::MutableImageView mut_image = image;
