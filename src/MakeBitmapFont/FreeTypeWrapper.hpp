@@ -66,6 +66,8 @@ namespace freetype
 
         FacePtr release();
 
+        void select_charmap(FT_Encoding encoding);
+
         void set_pixel_sizes(FT_UInt width, FT_UInt height);
 
         void load_char(FT_ULong char_code, FT_Int32 load_flags);

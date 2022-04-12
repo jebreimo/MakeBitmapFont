@@ -7,6 +7,7 @@
 //****************************************************************************
 #include "BitmapFont.hpp"
 #include "FreeTypeWrapper.hpp"
+#include "Ystring/Utf32.hpp"
 
 BitmapFont::BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
                        yimage::Image image)
@@ -83,31 +84,39 @@ namespace
         return {best.width, best.height};
     }
 
-    BitmapCharData get_size(freetype::Face& face, uint32_t c)
+    BitmapCharData get_size(FT_GlyphSlot glyph, unsigned x, unsigned y)
     {
-        face.load_char(c, FT_LOAD_BITMAP_METRICS_ONLY);
-        auto glyph = face->glyph;
         auto bmp = glyph->bitmap;
-        return {.width = bmp.width,
+        return {.x = x,
+                .y = y,
+                .width = bmp.width,
                 .height = bmp.rows,
                 .bearing_x = glyph->bitmap_left,
                 .bearing_y = glyph->bitmap_top,
                 .advance = int(glyph->advance.x)};
     }
 
+    std::pair<unsigned, unsigned> get_size(freetype::Face& face, uint32_t ch)
+    {
+        face.load_char(ch, FT_LOAD_BITMAP_METRICS_ONLY);
+        auto glyph = face->glyph;
+        auto bmp = glyph->bitmap;
+        return {bmp.width, bmp.rows};
+    }
+
     std::pair<unsigned, unsigned>
     get_max_glyph_size(freetype::Face& face, std::string_view chars)
     {
-        unsigned width = 0, height = 0;
-        for (const auto c: chars)
+        unsigned max_width = 0, max_height = 0;
+        for (const auto ch: ystring::to_utf32(chars))
         {
-            auto cdata = get_size(face, c);
-            if (cdata.width > width)
-                width = cdata.width;
-            if (cdata.height > height)
-                height = cdata.height;
+            auto [width, height] = get_size(face, ch);
+            if (width > max_width)
+                max_width = width;
+            if (height > max_height)
+                max_height = height;
         }
-        return {width, height};
+        return {max_width, max_height};
     }
 }
 
@@ -117,6 +126,7 @@ BitmapFont make_bitmap_font(const std::string& font_path,
 {
     freetype::Library library;
     auto face = library.new_face(font_path);
+    face.select_charmap(FT_ENCODING_UNICODE);
     face.set_pixel_sizes(0, font_size);
     auto [glyph_width, glyph_height] = get_max_glyph_size(face, chars);
     glyph_width += 1;
@@ -125,23 +135,28 @@ BitmapFont make_bitmap_font(const std::string& font_path,
     auto image_width = glyph_width * grid_width;
     if (auto n = image_width % 8)
         image_width += (8 - n);
+    std::unordered_map<char32_t, BitmapCharData> char_map;
     yimage::Image image(yimage::PixelType::MONO_8,
                         image_width,
                         glyph_height * grid_height);
     yimage::MutableImageView mut_image = image;
-    for (unsigned i = 0; i < chars.size(); ++i)
+    auto u32_chars = ystring::to_utf32(chars);
+    for (unsigned i = 0; i < u32_chars.size(); ++i)
     {
-        const auto c = chars[i];
-        face.load_char(c, FT_LOAD_RENDER);
-        auto glyph = face->glyph;
-        yimage::ImageView glyph_img(glyph->bitmap.buffer,
-                                    yimage::PixelType::MONO_8,
-                                    glyph->bitmap.width,
-                                    glyph->bitmap.rows);
+        const auto ch = u32_chars[i];
+        face.load_char(ch, FT_LOAD_RENDER);
         const auto x = (i % grid_width) * glyph_width;
         const auto y = (i / grid_width) * glyph_height;
+
+        auto glyph = face->glyph;
+        const auto& data = char_map.insert({ch,
+                                            get_size(glyph, x, y)}).first->second;
+        yimage::ImageView glyph_img(glyph->bitmap.buffer,
+                                    yimage::PixelType::MONO_8,
+                                    data.width,
+                                    data.height);
         paste(glyph_img, x, y, mut_image);
     }
 
-    return BitmapFont({}, std::move(image));
+    return BitmapFont(std::move(char_map), std::move(image));
 }

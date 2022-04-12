@@ -97,6 +97,11 @@ namespace freetype
         return move(face_);
     }
 
+    void Face::select_charmap(FT_Encoding encoding)
+    {
+        FT_Select_Charmap(face_.get(), encoding);
+    }
+
     void Face::set_pixel_sizes(FT_UInt width, FT_UInt height)
     {
         if (auto error = FT_Set_Pixel_Sizes(face_.get(), width, height))
