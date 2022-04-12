@@ -12,10 +12,10 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include <Argos/Argos.hpp>
-#include <Yimage/Yimage.hpp>
-#include <Yson/JsonWriter.hpp>
-#include <Ystring/Utf32.hpp>
+#include "Argos/Argos.hpp"
+#include "Yimage/Yimage.hpp"
+#include "Yson/JsonWriter.hpp"
+#include "Ystring/Utf32.hpp"
 
 #include "BitmapFont.hpp"
 

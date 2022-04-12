@@ -9,7 +9,6 @@
 
 #include <string_view>
 #include <unordered_map>
-#include <Xyz/Vector.hpp>
 #include <Yimage/Image.hpp>
 
 struct BitmapCharData
