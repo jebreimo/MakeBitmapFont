@@ -10,13 +10,12 @@ if (DEFINED LOCAL_SOURCE_PACKAGE_DIR OR DEFINED ENV{LOCAL_SOURCE_PACKAGE_DIR})
 endif ()
 
 find_package(Freetype REQUIRED)
-message("${FREETYPE_VERSION_STRING}")
 
 include(FetchContent)
 
 if (DEFINED LOCAL_SOURCE_PACKAGE_DIR)
     FetchContent_Declare(yimage
-        URL "file://${LOCAL_SOURCE_PACKAGE_DIR}/Yimage-0.0.2.tar.gz")
+        URL "file://${LOCAL_SOURCE_PACKAGE_DIR}/Yimage-0.0.8.tar.gz")
 else()
     FetchContent_Declare(yimage
         GIT_REPOSITORY "https://github.com/jebreimo/Yimage.git"
@@ -33,10 +32,13 @@ FetchContent_Declare(yson
     GIT_REPOSITORY "https://github.com/jebreimo/Yson.git"
     GIT_TAG "v1.4.3"
     )
+FetchContent_Declare(ystring2
+    GIT_REPOSITORY "https://github.com/jebreimo/Ystring2.git"
+    GIT_TAG "v2.1.1")
 
-FetchContent_MakeAvailable(argos xyz yimage yson)
+FetchContent_MakeAvailable(argos xyz yimage yson ystring2)
 
-add_executable(MakeBitmapFont main.cpp)
+add_executable(MakeBitmapFont main.cpp FreeTypeWrapper.cpp FreeTypeWrapper.hpp BitmapFont.cpp BitmapFont.hpp)
 
 target_link_libraries(MakeBitmapFont
     Argos::Argos
@@ -44,4 +46,5 @@ target_link_libraries(MakeBitmapFont
     Xyz::Xyz
     Yimage::Yimage
     Yson::Yson
+    Ystring2::Ystring
     )

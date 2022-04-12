@@ -6,15 +6,18 @@
 // License text is included with the source distribution.
 //****************************************************************************
 #include <cmath>
+#include <filesystem>
 #include <iostream>
+
 #include <ft2build.h>
+#include FT_FREETYPE_H
 
 #include <Argos/Argos.hpp>
-#include <Xyz/Xyz.hpp>
 #include <Yimage/Yimage.hpp>
 #include <Yson/JsonWriter.hpp>
+#include <Ystring/Utf32.hpp>
 
-#include FT_FREETYPE_H
+#include "BitmapFont.hpp"
 
 argos::ParsedArguments parse_arguments(int argc, char* argv[])
 {
@@ -27,156 +30,54 @@ argos::ParsedArguments parse_arguments(int argc, char* argv[])
         .parse(argc, argv);
 }
 
-struct CharData
-{
-    Xyz::Vector<unsigned, 2> size;
-    Xyz::Vector<int, 2> bearing;
-    int advance = 0;
-};
-
-std::pair<unsigned, unsigned> get_best_grid_size(unsigned count)
-{
-    if (count == 0)
-        return {0, 0};
-
-    struct Best {unsigned width; unsigned height; unsigned remainder;};
-    Best best = {count, 1, count};
-    auto width = unsigned(ceil(sqrt(count)));
-    while (true)
-    {
-        auto height = count / width;
-        const auto n = count % width;
-        if (n)
-            ++height;
-        if (width > height * 2)
-            break;
-        if (n == 0)
-            return {width, height};
-        if (width - n < best.remainder)
-            best = {width, height, width - n};
-        ++width;
-    }
-    return {best.width, best.height};
-}
-
-void write(Yson::Writer& writer, const CharData& data,
-           const Xyz::Vector<unsigned, 2>& point)
+void write(Yson::Writer& writer, const BitmapCharData& data)
 {
     constexpr auto FLAT = Yson::JsonParameters(Yson::JsonFormatting::FLAT);
 
     writer.beginObject();
     writer.key("position").beginArray(FLAT);
-    writer.value(point[0]).value(point[1]);
+    writer.value(data.x).value(data.y);
     writer.endArray();
     writer.key("size").beginArray(FLAT);
-    writer.value(data.size[0]).value(data.size[1]);
+    writer.value(data.width).value(data.height);
     writer.endArray();
     writer.key("bearing").beginArray(FLAT);
-    writer.value(data.bearing[0]).value(data.bearing[1]);
+    writer.value(data.bearing_x).value(data.bearing_y);
     writer.endArray();
     writer.key("advance").value(data.advance);
     writer.endObject();
 }
 
-CharData get_size(FT_Face face, uint32_t c)
-{
-    if (auto error = FT_Load_Char(face, c, FT_LOAD_BITMAP_METRICS_ONLY))
-    {
-        std::cerr << "FreeType error: " << error << ".\n";
-        return {};
-    }
-    auto glyph = face->glyph;
-    auto bmp = glyph->bitmap;
-    return {.size = {bmp.width, bmp.rows},
-            .bearing = {glyph->bitmap_left, glyph->bitmap_top},
-            .advance = int(glyph->advance.x)};
-}
-
-std::pair<unsigned, unsigned>
-get_max_glyph_size(FT_Face face, const std::string& chars)
-{
-    unsigned width = 0, height = 0;
-    for (const auto  c : chars)
-    {
-        auto cdata = get_size(face, c);
-        if (cdata.size[0] > width)
-            width = cdata.size[0];
-        if (cdata.size[1] > height)
-            height = cdata.size[1];
-    }
-    return {width, height};
-}
-
 int main(int argc, char* argv[])
 {
-    const auto args = parse_arguments(argc, argv);
-
-    FT_Library library;
-
-    if (auto error = FT_Init_FreeType(&library))
+    try
     {
-        std::cerr << "FreeType error: " << error << ".\n";
-        return 1;
-    }
+        const auto args = parse_arguments(argc, argv);
 
-    auto font_path = args.value("FONT").as_string();
+        auto font_path = args.value("FONT").as_string();
+        auto font_size = args.value("--size").as_uint(12);
+        auto font = make_bitmap_font(font_path,
+                                     args.value("--size").as_uint(12),
+                                     args.value("TEXT").as_string());
 
-    FT_Face face;
-    if (auto error = FT_New_Face(library,
-                                 font_path.c_str(),
-                                 0,
-                                 &face))
-    {
-        std::cerr << "FreeType can't load: " << font_path
-                  << ". Error: " << error << ".\n";
-        return 1;
-    }
-
-    auto font_size = args.value("--size").as_uint(12);
-    if (auto error = FT_Set_Pixel_Sizes(face, 0, font_size))
-    {
-        std::cerr << "FreeType error: " << error << ".\n";
-        return 1;
-    }
-
-    auto text = args.value("TEXT").as_string();
-    auto [glyph_width, glyph_height] = get_max_glyph_size(face, text);
-    glyph_width += 1;
-    glyph_height += 1;
-    const auto [grid_width, grid_height] = get_best_grid_size(text.size());
-    std::cout << glyph_width << ", " << glyph_height << "\n"
-              << grid_width << ", " << grid_height << "\n";
-    auto image_width = glyph_width * grid_width;
-    if (auto n = image_width % 8)
-        image_width += (8 - n);
-    yimage::Image image(image_width,
-                        glyph_height * grid_height,
-                        yimage::PixelType::MONO8);
-    yimage::MutableImageView mut_image = image;
-    Yson::JsonWriter writer(text + ".json", Yson::JsonFormatting::FORMAT);
-    writer.beginObject();
-    for (unsigned i = 0; i < text.size(); ++i)
-    {
-        const auto c = text[i];
-        writer.key(std::string(1, c));
-        const auto x = (i % grid_width) * glyph_width;
-        const auto y = (i / grid_width) * glyph_height;
-        write(writer, get_size(face, c), {x, y});
-
-        if (auto error = FT_Load_Char(face, c, FT_LOAD_RENDER))
+        auto result_path = std::filesystem::path(font_path).filename()
+                               .replace_extension().string()
+                               + "_" + std::to_string(font_size);
+        Yson::JsonWriter writer(result_path + ".json",
+                                 Yson::JsonFormatting::FORMAT);
+        writer.beginObject();
+        for (auto [ch, data] : font.all_char_data())
         {
-            std::cerr << "FreeType error: " << error << ".\n";
-            return -1;
+            writer.key(ystring::from_utf32(ch));
+            write(writer, data);
         }
-        auto glyph = face->glyph;
-        yimage::ImageView glyph_img(glyph->bitmap.buffer,
-                                    glyph->bitmap.width,
-                                    glyph->bitmap.rows,
-                                    yimage::PixelType::MONO8);
-        mut_image.paste(glyph_img, x, y);
-    }
-    yimage::write_png(text + ".png", image);
-    writer.endObject();
+        writer.endObject();
 
+        yimage::write_png(result_path + ".png", font.image());
+   }
+    catch (std::exception& ex)
+    {
+        std::cerr << ex.what() << "\n";
+    }
     return 0;
 }
