@@ -84,7 +84,7 @@ namespace
         return {best.width, best.height};
     }
 
-    BitmapCharData get_size(FT_GlyphSlot glyph, unsigned x, unsigned y)
+    BitmapCharData make_char_data(FT_GlyphSlot glyph, unsigned x, unsigned y)
     {
         auto bmp = glyph->bitmap;
         return {.x = x,
@@ -143,14 +143,14 @@ BitmapFont make_bitmap_font(const std::string& font_path,
     auto u32_chars = ystring::to_utf32(chars);
     for (unsigned i = 0; i < u32_chars.size(); ++i)
     {
-        const auto ch = u32_chars[i];
-        face.load_char(ch, FT_LOAD_RENDER);
         const auto x = (i % grid_width) * glyph_width;
         const auto y = (i / grid_width) * glyph_height;
 
+        const auto ch = u32_chars[i];
+        face.load_char(ch, FT_LOAD_RENDER);
         auto glyph = face->glyph;
         const auto& data = char_map.insert({ch,
-                                            get_size(glyph, x, y)}).first->second;
+                                            make_char_data(glyph, x, y)}).first->second;
         yimage::ImageView glyph_img(glyph->bitmap.buffer,
                                     yimage::PixelType::MONO_8,
                                     data.width,
