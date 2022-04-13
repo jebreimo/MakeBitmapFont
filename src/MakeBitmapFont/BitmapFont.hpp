@@ -1,6 +1,6 @@
 //****************************************************************************
 // Copyright © 2022 Jan Erik Breimo. All rights reserved.
-// Created by Jan Erik Breimo on 2022-03-15.
+// Created by Jan Erik Breimo on 2022-01-23.
 //
 // This file is distributed under the BSD License.
 // License text is included with the source distribution.
@@ -54,11 +54,6 @@ BitmapFont make_bitmap_font(const std::string& font_path,
                             unsigned font_size,
                             std::span<char32_t> chars);
 
-std::unordered_map<char32_t, BitmapCharData> read_font(Yson::Reader& reader);
-
 BitmapFont read_font(const std::string& font_path);
-
-void write_font(const std::unordered_map<char32_t, BitmapCharData>& font,
-                Yson::Writer& writer);
 
 void write_font(const BitmapFont& font, const std::string& file_name);

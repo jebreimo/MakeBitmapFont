@@ -1,6 +1,6 @@
 //****************************************************************************
 // Copyright © 2022 Jan Erik Breimo. All rights reserved.
-// Created by Jan Erik Breimo on 2022-03-15.
+// Created by Jan Erik Breimo on 2022-01-23.
 //
 // This file is distributed under the BSD License.
 // License text is included with the source distribution.
@@ -164,7 +164,7 @@ BitmapFont make_bitmap_font(const std::string& font_path,
         paste(glyph_img, x, y, mut_image);
     }
 
-    return BitmapFont(std::move(char_map), std::move(image));
+    return {std::move(char_map), std::move(image)};
 }
 
 namespace
@@ -259,13 +259,6 @@ void write_font(const BitmapFont& font, const std::string& file_name)
 {
     Yson::JsonWriter writer(file_name + ".json",
                             Yson::JsonFormatting::FORMAT);
-    writer.beginObject();
-    for (auto [ch, data] : font.all_char_data())
-    {
-        writer.key(ystring::from_utf32(ch));
-        write(writer, data);
-    }
-    writer.endObject();
-
+    write_font(font.all_char_data(), writer);
     yimage::write_png(file_name + ".png", font.image());
 }
