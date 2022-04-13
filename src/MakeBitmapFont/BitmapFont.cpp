@@ -6,8 +6,15 @@
 // License text is included with the source distribution.
 //****************************************************************************
 #include "BitmapFont.hpp"
+
+#include <filesystem>
+#include <Yimage/Yimage.hpp>
+#include <Yson/JsonReader.hpp>
+#include <Yson/JsonWriter.hpp>
+#include <Yson/ReaderIterators.hpp>
+#include <Ystring/Ystring.hpp>
+
 #include "FreeTypeWrapper.hpp"
-#include "Ystring/Utf32.hpp"
 
 BitmapFont::BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
                        yimage::Image image)
@@ -96,7 +103,7 @@ namespace
                 .advance = int(glyph->advance.x)};
     }
 
-    std::pair<unsigned, unsigned> get_size(freetype::Face& face, uint32_t ch)
+    std::pair<unsigned, unsigned> get_size(freetype::Face& face, char32_t ch)
     {
         face.load_char(ch, FT_LOAD_BITMAP_METRICS_ONLY);
         auto glyph = face->glyph;
@@ -105,10 +112,10 @@ namespace
     }
 
     std::pair<unsigned, unsigned>
-    get_max_glyph_size(freetype::Face& face, std::string_view chars)
+    get_max_glyph_size(freetype::Face& face, std::span<char32_t> chars)
     {
         unsigned max_width = 0, max_height = 0;
-        for (const auto ch: ystring::to_utf32(chars))
+        for (const auto ch: chars)
         {
             auto [width, height] = get_size(face, ch);
             if (width > max_width)
@@ -122,7 +129,7 @@ namespace
 
 BitmapFont make_bitmap_font(const std::string& font_path,
                             unsigned font_size,
-                            std::string_view chars)
+                            std::span<char32_t> chars)
 {
     freetype::Library library;
     auto face = library.new_face(font_path);
@@ -134,19 +141,18 @@ BitmapFont make_bitmap_font(const std::string& font_path,
     const auto[grid_width, grid_height] = get_best_grid_size(chars.size());
     auto image_width = glyph_width * grid_width;
     if (auto n = image_width % 8)
-        image_width += (8 - n);
+        image_width += 8 - n;
     std::unordered_map<char32_t, BitmapCharData> char_map;
     yimage::Image image(yimage::PixelType::MONO_8,
                         image_width,
                         glyph_height * grid_height);
     yimage::MutableImageView mut_image = image;
-    auto u32_chars = ystring::to_utf32(chars);
-    for (unsigned i = 0; i < u32_chars.size(); ++i)
+    for (unsigned i = 0; i < chars.size(); ++i)
     {
         const auto x = (i % grid_width) * glyph_width;
         const auto y = (i / grid_width) * glyph_height;
 
-        const auto ch = u32_chars[i];
+        const auto ch = chars[i];
         face.load_char(ch, FT_LOAD_RENDER);
         auto glyph = face->glyph;
         const auto& data = char_map.insert({ch,
@@ -159,4 +165,107 @@ BitmapFont make_bitmap_font(const std::string& font_path,
     }
 
     return BitmapFont(std::move(char_map), std::move(image));
+}
+
+namespace
+{
+    std::pair<std::string, std::string>
+    get_json_and_png_paths(std::filesystem::path path)
+    {
+        auto extension = ystring::to_lower(path.extension().string());
+        if (extension == ".json")
+        {
+            const auto json_path = path;
+            path.replace_extension(".png");
+            return {json_path.string(), path.string()};
+        }
+        else if (extension == ".png")
+        {
+            const auto png_path = path;
+            path.replace_extension(".json");
+            return {path.string(), png_path.string()};
+        }
+        else
+        {
+            return {path.string() + ".json", path.string() + ".png"};
+        }
+    }
+}
+
+std::unordered_map<char32_t, BitmapCharData> read_font(Yson::Reader& reader)
+{
+    using Yson::get;
+    std::unordered_map<char32_t, BitmapCharData> result;
+    for (const auto& key: keys(reader))
+    {
+        auto item = reader.readItem();
+        auto position = item["position"];
+        auto size = item["size"];
+        auto bearing = item["bearing"];
+        auto[range, ch] = ystring::get_code_point(key, 0);
+        result.insert({ch,
+                       {get<unsigned>(position[0].value()),
+                        get<unsigned>(position[1].value()),
+                        get<unsigned>(size[0].value()),
+                        get<unsigned>(size[1].value()),
+                        get<int>(bearing[0].value()),
+                        get<int>(bearing[1].value()),
+                        get<int>(item["advance"])}});
+    }
+    return result;
+}
+
+BitmapFont read_font(const std::string& font_path)
+{
+    auto [json_path, png_path] = get_json_and_png_paths(font_path);
+    Yson::JsonReader reader(json_path);
+    return {read_font(reader), yimage::read_png(png_path)};
+}
+
+namespace
+{
+    void write(Yson::Writer& writer, const BitmapCharData& data)
+    {
+        constexpr auto FLAT = Yson::JsonParameters(Yson::JsonFormatting::FLAT);
+
+        writer.beginObject();
+        writer.key("position").beginArray(FLAT);
+        writer.value(data.x).value(data.y);
+        writer.endArray();
+        writer.key("size").beginArray(FLAT);
+        writer.value(data.width).value(data.height);
+        writer.endArray();
+        writer.key("bearing").beginArray(FLAT);
+        writer.value(data.bearing_x).value(data.bearing_y);
+        writer.endArray();
+        writer.key("advance").value(data.advance);
+        writer.endObject();
+    }
+}
+
+void write_font(const std::unordered_map<char32_t, BitmapCharData>& font,
+                Yson::Writer& writer)
+{
+    writer.beginObject();
+    for (auto [ch, data] : font)
+    {
+        writer.key(ystring::from_utf32(ch));
+        write(writer, data);
+    }
+    writer.endObject();
+}
+
+void write_font(const BitmapFont& font, const std::string& file_name)
+{
+    Yson::JsonWriter writer(file_name + ".json",
+                            Yson::JsonFormatting::FORMAT);
+    writer.beginObject();
+    for (auto [ch, data] : font.all_char_data())
+    {
+        writer.key(ystring::from_utf32(ch));
+        write(writer, data);
+    }
+    writer.endObject();
+
+    yimage::write_png(file_name + ".png", font.image());
 }

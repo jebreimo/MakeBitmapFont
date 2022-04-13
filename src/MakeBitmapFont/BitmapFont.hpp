@@ -7,9 +7,11 @@
 //****************************************************************************
 #pragma once
 
-#include <string_view>
+#include <span>
 #include <unordered_map>
 #include <Yimage/Image.hpp>
+#include <Yson/Reader.hpp>
+#include <Yson/Writer.hpp>
 
 struct BitmapCharData
 {
@@ -27,8 +29,8 @@ class BitmapFont
 public:
     BitmapFont() = default;
 
-    explicit BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
-                        yimage::Image image);
+    BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
+               yimage::Image image);
 
     [[nodiscard]]
     const BitmapCharData* char_data(char32_t ch) const;
@@ -50,4 +52,13 @@ private:
 
 BitmapFont make_bitmap_font(const std::string& font_path,
                             unsigned font_size,
-                            std::string_view text);
+                            std::span<char32_t> chars);
+
+std::unordered_map<char32_t, BitmapCharData> read_font(Yson::Reader& reader);
+
+BitmapFont read_font(const std::string& font_path);
+
+void write_font(const std::unordered_map<char32_t, BitmapCharData>& font,
+                Yson::Writer& writer);
+
+void write_font(const BitmapFont& font, const std::string& file_name);

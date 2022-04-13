@@ -8,10 +8,10 @@
 #pragma once
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
 
 #include <ft2build.h>
-#include <string>
 #include FT_FREETYPE_H
 
 namespace freetype
