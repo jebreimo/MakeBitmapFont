@@ -15,8 +15,7 @@ FetchContent_Declare(yimage
     GIT_TAG v0.1.4)
 FetchContent_Declare(yson
     GIT_REPOSITORY "https://github.com/jebreimo/Yson.git"
-    GIT_TAG "v1.4.3"
-    )
+    GIT_TAG "v1.4.12")
 FetchContent_Declare(ystring2
     GIT_REPOSITORY "https://github.com/jebreimo/Ystring2.git"
     GIT_TAG "v2.1.1")
