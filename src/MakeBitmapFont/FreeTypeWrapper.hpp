@@ -14,7 +14,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-namespace freetype
+namespace Freetype
 {
     struct FreeTypeException : std::runtime_error
     {
@@ -22,7 +22,7 @@ namespace freetype
     };
 
     #define FREETYPE_THROW_3_(file, line, msg) \
-        throw ::freetype::FreeTypeException(file ":" #line ": " msg)
+        throw ::Freetype::FreeTypeException(file ":" #line ": " msg)
 
     #define FREETYPE_THROW_2_(file, line, msg) \
         FREETYPE_THROW_3_(file, line, msg)

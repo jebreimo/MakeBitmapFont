@@ -7,7 +7,7 @@
 //****************************************************************************
 #include "FreeTypeWrapper.hpp"
 
-namespace freetype
+namespace Freetype
 {
     Library::Library()
     {
@@ -22,20 +22,20 @@ namespace freetype
     {}
 
     Library::Library(Library&& rhs) noexcept
-        : library_(move(rhs.library_))
+        : library_(std::move(rhs.library_))
     {}
 
     Library::~Library() = default;
 
     Library& Library::operator=(Library&& rhs) noexcept
     {
-        library_ = move(rhs.library_);
+        library_ = std::move(rhs.library_);
         return *this;
     }
 
     LibraryPtr Library::release()
     {
-        return move(library_);
+        return std::move(library_);
     }
 
     Face Library::new_face(const std::string& font_path, FT_Long face_index)
@@ -61,14 +61,14 @@ namespace freetype
     {}
 
     Face::Face(Face&& rhs) noexcept
-        : face_(move(rhs.face_))
+        : face_(std::move(rhs.face_))
     {}
 
     Face::~Face() = default;
 
     Face& Face::operator=(Face&& rhs) noexcept
     {
-        face_ = move(rhs.face_);
+        face_ = std::move(rhs.face_);
         return *this;
     }
 
@@ -94,7 +94,7 @@ namespace freetype
 
     FacePtr Face::release()
     {
-        return move(face_);
+        return std::move(face_);
     }
 
     void Face::select_charmap(FT_Encoding encoding)

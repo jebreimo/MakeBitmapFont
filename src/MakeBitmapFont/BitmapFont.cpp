@@ -18,7 +18,7 @@
 
 BitmapFont::BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
                        Yimage::Image image)
-    : char_data_(move(char_data)),
+    : char_data_(std::move(char_data)),
       image_(std::move(image))
 {}
 
@@ -37,7 +37,7 @@ const std::unordered_map<char32_t, BitmapCharData>& BitmapFont::all_char_data() 
 std::pair<int, int> BitmapFont::vertical_extremes() const
 {
     int max_hi = 0, min_lo = 0;
-    for (auto& data: char_data_)
+    for (const auto& data: char_data_)
     {
         int hi = data.second.bearing_y;
         if (hi > max_hi)
@@ -103,7 +103,7 @@ namespace
                 .advance = int(glyph->advance.x)};
     }
 
-    std::pair<unsigned, unsigned> get_size(freetype::Face& face, char32_t ch)
+    std::pair<unsigned, unsigned> get_size(Freetype::Face& face, char32_t ch)
     {
         face.load_char(ch, FT_LOAD_BITMAP_METRICS_ONLY);
         auto glyph = face->glyph;
@@ -112,7 +112,7 @@ namespace
     }
 
     std::pair<unsigned, unsigned>
-    get_max_glyph_size(freetype::Face& face, std::span<char32_t> chars)
+    get_max_glyph_size(Freetype::Face& face, std::span<char32_t> chars)
     {
         unsigned max_width = 0, max_height = 0;
         for (const auto ch: chars)
@@ -131,7 +131,7 @@ BitmapFont make_bitmap_font(const std::string& font_path,
                             unsigned font_size,
                             std::span<char32_t> chars)
 {
-    freetype::Library library;
+    Freetype::Library library;
     auto face = library.new_face(font_path);
     face.select_charmap(FT_ENCODING_UNICODE);
     face.set_pixel_sizes(0, font_size);
@@ -199,9 +199,9 @@ std::unordered_map<char32_t, BitmapCharData> read_font(Yson::Reader& reader)
     for (const auto& key: keys(reader))
     {
         auto item = reader.readItem();
-        auto position = item["position"];
-        auto size = item["size"];
-        auto bearing = item["bearing"];
+        const auto& position = item["position"];
+        const auto& size = item["size"];
+        const auto& bearing = item["bearing"];
         auto[range, ch] = ystring::get_code_point(key, 0);
         result.insert({ch,
                        {get<unsigned>(position[0].value()),
