@@ -30,7 +30,7 @@ public:
     BitmapFont() = default;
 
     BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
-               yimage::Image image);
+               Yimage::Image image);
 
     [[nodiscard]]
     const BitmapCharData* char_data(char32_t ch) const;
@@ -42,12 +42,12 @@ public:
     std::pair<int, int> vertical_extremes() const;
 
     [[nodiscard]]
-    const yimage::Image& image() const;
+    const Yimage::Image& image() const;
 
-    yimage::Image release_image();
+    Yimage::Image release_image();
 private:
     std::unordered_map<char32_t, BitmapCharData> char_data_;
-    yimage::Image image_;
+    Yimage::Image image_;
 };
 
 BitmapFont make_bitmap_font(const std::string& font_path,

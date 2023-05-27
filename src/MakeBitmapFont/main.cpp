@@ -19,11 +19,15 @@
 argos::ParsedArguments parse_arguments(int argc, char* argv[])
 {
     using namespace argos;
-    return ArgumentParser(argv[0])
-        .add(Argument("FONT"))
-        .add(Argument("TEXT"))
-        .add(Option{"-s", "--size"}.argument("PIXELS")
-             .help("Set the font size (height)."))
+    return ArgumentParser()
+        .add(Arg("FONT")
+            .help("Path to a font file. It must be in one of the formats"
+                  " that FreeType supports."))
+        .add(Arg("TEXT").optional()
+            .help("The characters (UTF-8) that will be included in the font."
+                  " The ASCII characters will be used if TEXT is not given."))
+        .add(Opt{"-s", "--size"}.argument("PIXELS")
+             .help("Set the font size (height). Defaults to 12."))
         .parse(argc, argv);
 }
 
@@ -35,7 +39,12 @@ int main(int argc, char* argv[])
 
         auto font_path = args.value("FONT").as_string();
         auto font_size = args.value("--size").as_uint(12);
-        auto u32_chars = ystring::to_utf32(args.value("TEXT").as_string());
+        auto u32_chars = ystring::to_utf32(args.value("TEXT").as_string(""));
+        if (u32_chars.empty())
+        {
+            for (char32_t i = 33; i < 127; ++i)
+                u32_chars.push_back(i);
+        }
         auto font = make_bitmap_font(font_path,
                                      args.value("--size").as_uint(12),
                                      std::span(u32_chars));

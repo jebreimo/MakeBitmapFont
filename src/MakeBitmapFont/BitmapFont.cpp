@@ -17,7 +17,7 @@
 #include "FreeTypeWrapper.hpp"
 
 BitmapFont::BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
-                       yimage::Image image)
+                       Yimage::Image image)
     : char_data_(move(char_data)),
       image_(std::move(image))
 {}
@@ -49,12 +49,12 @@ std::pair<int, int> BitmapFont::vertical_extremes() const
     return {min_lo, max_hi};
 }
 
-const yimage::Image& BitmapFont::image() const
+const Yimage::Image& BitmapFont::image() const
 {
     return image_;
 }
 
-yimage::Image BitmapFont::release_image()
+Yimage::Image BitmapFont::release_image()
 {
     return std::move(image_);
 }
@@ -143,10 +143,10 @@ BitmapFont make_bitmap_font(const std::string& font_path,
     if (auto n = image_width % 8)
         image_width += 8 - n;
     std::unordered_map<char32_t, BitmapCharData> char_map;
-    yimage::Image image(yimage::PixelType::MONO_8,
+    Yimage::Image image(Yimage::PixelType::MONO_8,
                         image_width,
                         glyph_height * grid_height);
-    yimage::MutableImageView mut_image = image;
+    Yimage::MutableImageView mut_image = image;
     for (unsigned i = 0; i < chars.size(); ++i)
     {
         const auto x = (i % grid_width) * glyph_width;
@@ -157,11 +157,11 @@ BitmapFont make_bitmap_font(const std::string& font_path,
         auto glyph = face->glyph;
         const auto& data = char_map.insert({ch,
                                             make_char_data(glyph, x, y)}).first->second;
-        yimage::ImageView glyph_img(glyph->bitmap.buffer,
-                                    yimage::PixelType::MONO_8,
+        Yimage::ImageView glyph_img(glyph->bitmap.buffer,
+                                    Yimage::PixelType::MONO_8,
                                     data.width,
                                     data.height);
-        paste(glyph_img, x, y, mut_image);
+        paste(glyph_img, mut_image, x, y);
     }
 
     return {std::move(char_map), std::move(image)};
@@ -219,7 +219,7 @@ BitmapFont read_font(const std::string& font_path)
 {
     auto [json_path, png_path] = get_json_and_png_paths(font_path);
     Yson::JsonReader reader(json_path);
-    return {read_font(reader), yimage::read_png(png_path)};
+    return {read_font(reader), Yimage::read_png(png_path)};
 }
 
 namespace
@@ -260,5 +260,5 @@ void write_font(const BitmapFont& font, const std::string& file_name)
     Yson::JsonWriter writer(file_name + ".json",
                             Yson::JsonFormatting::FORMAT);
     write_font(font.all_char_data(), writer);
-    yimage::write_png(file_name + ".png", font.image());
+    Yimage::write_png(file_name + ".png", font.image());
 }
