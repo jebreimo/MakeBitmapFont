@@ -29,8 +29,11 @@ class BitmapFont
 public:
     BitmapFont() = default;
 
-    BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
+    BitmapFont(std::string family_name,
+               std::unordered_map<char32_t, BitmapCharData> char_data,
                Yimage::Image image);
+
+    const std::string& family_name() const;
 
     [[nodiscard]]
     const BitmapCharData* char_data(char32_t ch) const;
@@ -46,6 +49,7 @@ public:
 
     Yimage::Image release_image();
 private:
+    std::string family_name_;
     std::unordered_map<char32_t, BitmapCharData> char_data_;
     Yimage::Image image_;
 };

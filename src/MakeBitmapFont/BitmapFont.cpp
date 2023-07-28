@@ -16,9 +16,11 @@
 
 #include "FreeTypeWrapper.hpp"
 
-BitmapFont::BitmapFont(std::unordered_map<char32_t, BitmapCharData> char_data,
+BitmapFont::BitmapFont(std::string family_name,
+                       std::unordered_map<char32_t, BitmapCharData> char_data,
                        Yimage::Image image)
-    : char_data_(std::move(char_data)),
+    : family_name_(std::move(family_name)),
+      char_data_(std::move(char_data)),
       image_(std::move(image))
 {}
 
@@ -29,7 +31,8 @@ const BitmapCharData* BitmapFont::char_data(char32_t ch) const
     return nullptr;
 }
 
-const std::unordered_map<char32_t, BitmapCharData>& BitmapFont::all_char_data() const
+const std::unordered_map<char32_t, BitmapCharData>&
+BitmapFont::all_char_data() const
 {
     return char_data_;
 }
@@ -57,6 +60,11 @@ const Yimage::Image& BitmapFont::image() const
 Yimage::Image BitmapFont::release_image()
 {
     return std::move(image_);
+}
+
+const std::string& BitmapFont::family_name() const
+{
+    return family_name_;
 }
 
 namespace
@@ -164,7 +172,7 @@ BitmapFont make_bitmap_font(const std::string& font_path,
         paste(glyph_img, mut_image, x, y);
     }
 
-    return {std::move(char_map), std::move(image)};
+    return {face->family_name, std::move(char_map), std::move(image)};
 }
 
 namespace
@@ -219,7 +227,7 @@ BitmapFont read_font(const std::string& font_path)
 {
     auto [json_path, png_path] = get_json_and_png_paths(font_path);
     Yson::JsonReader reader(json_path);
-    return {read_font(reader), Yimage::read_png(png_path)};
+    return {{}, read_font(reader), Yimage::read_png(png_path)};
 }
 
 namespace
@@ -259,6 +267,10 @@ void write_font(const BitmapFont& font, const std::string& file_name)
 {
     Yson::JsonWriter writer(file_name + ".json",
                             Yson::JsonFormatting::FORMAT);
+    writer.beginObject();
+    writer.key("family").value(font.family_name());
+    writer.key("glyphs");
     write_font(font.all_char_data(), writer);
+    writer.endObject();
     Yimage::write_png(file_name + ".png", font.image());
 }
